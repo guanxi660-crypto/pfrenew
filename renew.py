@@ -1,7 +1,5 @@
 import os
-import sys
 import requests
-import time
 from playwright.sync_api import sync_playwright
 
 def send_tg_msg(message):
@@ -22,41 +20,43 @@ def run():
         )
         page = context.new_page()
 
-        # --- 核心修改：通过 URL 下载脚本并直接注入字符串 ---
-        stealth_url = "https://raw.githubusercontent.com/requirecool/playwright-stealth/master/playwright_stealth/stealth.min.js"
+        # 注入 Stealth 脚本以防检测
         try:
-            stealth_js = requests.get(stealth_url).text
+            stealth_js = requests.get("https://raw.githubusercontent.com/requirecool/playwright-stealth/master/playwright_stealth/stealth.min.js").text
             page.add_init_script(script=stealth_js)
         except Exception as e:
-            print(f"注入 Stealth 脚本失败，继续执行: {e}")
-
-     
+            print(f"注入 Stealth 脚本失败: {e}")
 
         try:
             print("正在访问网站...")
             page.goto("https://pixelforge.gg/dashboard", wait_until="networkidle")
             
-            # --- [调试逻辑] 打印所有 input 的信息 ---
-            inputs = page.query_selector_all("input")
-            print(f"DEBUG: 页面共发现 {len(inputs)} 个输入框")
-            for i, inp in enumerate(inputs):
-                tag_id = inp.get_attribute('id')
-                tag_name = inp.get_attribute('name')
-                tag_type = inp.get_attribute('type')
-                tag_placeholder = inp.get_attribute('placeholder')
-                print(f"输入框 {i}: id='{tag_id}', name='{tag_name}', type='{tag_type}', placeholder='{tag_placeholder}'")
-            # ------------------------------------
-
-            print("调试信息已打印，程序即将结束。")
+            # --- 使用 ID 选择器进行操作 ---
+            print("正在输入账号信息...")
+            page.fill('#email', os.getenv("PF_USERNAME", ""))
+            page.fill('#password', os.getenv("PF_PASSWORD", ""))
             
+            # 点击登录按钮 (这里假设按钮类型是 submit，如果点击没反应，可尝试使用 text="Login" 或类似选择器)
+            print("正在提交登录...")
+            page.click('button[type="submit"]')
+            
+            # 等待登录后的页面加载
+            page.wait_for_load_state("networkidle")
+            
+            # 点击 Renew 按钮
+            print("正在尝试点击 Renew...")
+            renew_selector = 'button:has-text("Renew")'
+            page.wait_for_selector(renew_selector, timeout=15000)
+            page.click(renew_selector)
+            
+            send_tg_msg("✅ PixelForge 续期成功！")
+            print("续期成功")
         except Exception as e:
             error_msg = f"❌ 续期失败: {str(e)}"
             print(error_msg)
             send_tg_msg(error_msg)
         finally:
             browser.close()
-
-
 
 if __name__ == "__main__":
     run()
