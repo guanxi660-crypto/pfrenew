@@ -30,32 +30,32 @@ def run():
         except Exception as e:
             print(f"注入 Stealth 脚本失败，继续执行: {e}")
 
+     
+
         try:
             print("正在访问网站...")
             page.goto("https://pixelforge.gg/dashboard", wait_until="networkidle")
             
-            # 填入信息 (如果报错找不到元素，请确保网站确实加载了这些 input)
-            page.fill('input[name="email"]', os.getenv("PF_USERNAME", ""))
-            page.fill('input[name="password"]', os.getenv("PF_PASSWORD", ""))
-            page.click('button[type="submit"]')
+            # --- [调试逻辑] 打印所有 input 的信息 ---
+            inputs = page.query_selector_all("input")
+            print(f"DEBUG: 页面共发现 {len(inputs)} 个输入框")
+            for i, inp in enumerate(inputs):
+                tag_id = inp.get_attribute('id')
+                tag_name = inp.get_attribute('name')
+                tag_type = inp.get_attribute('type')
+                tag_placeholder = inp.get_attribute('placeholder')
+                print(f"输入框 {i}: id='{tag_id}', name='{tag_name}', type='{tag_type}', placeholder='{tag_placeholder}'")
+            # ------------------------------------
+
+            print("调试信息已打印，程序即将结束。")
             
-            page.wait_for_load_state("networkidle")
-            
-            # 尝试点击 Renew
-            renew_selector = 'button:has-text("Renew")'
-            page.wait_for_selector(renew_selector, timeout=15000)
-            page.click(renew_selector)
-            
-            send_tg_msg("✅ PixelForge 续期成功！")
-            print("续期成功")
         except Exception as e:
             error_msg = f"❌ 续期失败: {str(e)}"
             print(error_msg)
-            # 在 GitHub Actions 日志中打印页面内容，方便排查定位
-            print(page.content()[:500]) 
             send_tg_msg(error_msg)
         finally:
             browser.close()
+
 
 
 if __name__ == "__main__":
