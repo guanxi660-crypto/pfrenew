@@ -1,13 +1,8 @@
 import os
 import sys
 import requests
-# 确保 playwright 模块可用
-try:
-    from playwright.sync_api import sync_playwright
-    from playwright_stealth import stealth_sync
-except ImportError as e:
-    print(f"依赖库未安装: {e}")
-    sys.exit(1)
+import time
+from playwright.sync_api import sync_playwright
 
 def send_tg_msg(message):
     token = os.getenv("TG_BOT_TOKEN")
@@ -21,25 +16,26 @@ def send_tg_msg(message):
 
 def run():
     with sync_playwright() as p:
-        # 显式使用 chromium
         browser = p.chromium.launch(headless=True)
         context = browser.new_context(
-            user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36"
+            user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
         )
         page = context.new_page()
-        # 应用反检测
-        stealth_sync(page)
+
+        # 手动注入 Stealth 脚本（无需额外库）
+        # 这一步能有效伪装 WebDriver 特征
+        stealth_js = requests.get("https://raw.githubusercontent.com/berstend/puppeteer-extra/master/packages/stealth-plugin-evasions/evasions/webgl.vendor/index.js").text
+        page.add_init_script(path="https://raw.githubusercontent.com/requirecool/playwright-stealth/master/playwright_stealth/stealth.min.js")
 
         try:
             print("正在访问网站...")
             page.goto("https://pixelforge.gg/dashboard", wait_until="networkidle")
             
-            # 填入登录信息
+            # 填入信息
             page.fill('input[name="email"]', os.getenv("PF_USERNAME", ""))
             page.fill('input[name="password"]', os.getenv("PF_PASSWORD", ""))
             page.click('button[type="submit"]')
             
-            # 等待操作完成
             page.wait_for_load_state("networkidle")
             
             # 尝试点击 Renew
